@@ -38,10 +38,10 @@ my ($sec,$min,$hour,$mday,$mon,$year,$wday,$yday,$isdst) = localtime(time);
 $mon ++;
 $year += 1900;
 
-my $YEAR 	= $OP{'-y'} || $year; 
-my $MONTH 	= $OP{'-m'} || $mon; 
-my $CM 		= $OP{'-cm'} || 'y'; 
-my $DROP 	= $OP{'-d'} || 0; 
+my $YEAR    = $OP{'-y'} || $year; 
+my $MONTH   = $OP{'-m'} || $mon; 
+my $CM      = $OP{'-cm'} || 'y'; 
+my $DROP    = $OP{'-d'} || 0; 
 
 exit unless ( -e $IN );
 
@@ -50,14 +50,14 @@ my $queue = Thread::Queue->new;
 print "Loading queue... ";
 open FP, "<$IN";
 while ( <FP> ) {
-	s/(\n|\r)//gsm;
-	my $user;
-	eval {
-		$user = from_json( $_ );
-	};
-	$user = {} unless ( defined $user );
+    s/(\n|\r)//gsm;
+    my $user;
+    eval {
+        $user = from_json( $_ );
+    };
+    $user = {} unless ( defined $user );
     my $name = $user->{'user_name'} || $_ || ''; # Если вдруг этого поля нет, то мы пытаемся загрузить просто текстовый файл
-	$name =~ s/_/\-/g;
+    $name =~ s/_/\-/g;
     $queue->enqueue( $name ) if ( $name );
 }
 close FP;
@@ -86,9 +86,9 @@ sub get_user(@) {
 
     while ( defined( my $user = $queue->dequeue_nb ) ) {
         $COUNTER++;
-		print "$process $COUNTER $user\n";
-		`perl lj-user-crawler.pl $user -y $YEAR -m $MONTH -c $COUNTER -cm $CM -d $DROP > $process.lj.log`;
-	}
+        print "$process $COUNTER $user\n";
+        `perl lj-user-crawler.pl $user -y $YEAR -m $MONTH -c $COUNTER -cm $CM -d $DROP > $process.lj.log`;
+    }
     
     $AT --;
 }
