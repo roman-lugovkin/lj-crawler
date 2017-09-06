@@ -87,7 +87,7 @@ sub get_user(@) {
     while ( defined( my $user = $queue->dequeue_nb ) ) {
         $COUNTER++;
 		print "$process $COUNTER $user\n";
-		`perl lj-user-crawler.pl -u $user -y $YEAR -m $MONTH -c $COUNTER -cm $CM -d $DROP > $process.lj.log`;
+		`perl lj-user-crawler.pl $user -y $YEAR -m $MONTH -c $COUNTER -cm $CM -d $DROP > $process.lj.log`;
 	}
     
     $AT --;
