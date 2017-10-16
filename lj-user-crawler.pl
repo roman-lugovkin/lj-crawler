@@ -5,6 +5,7 @@ use LWP;
 use Encode;
 use JSON;
 use List::Util qw/max/;
+use HTTP::Cookies;
 
 $| = 1;
 
@@ -33,6 +34,9 @@ sub process_post(@);
 sub get_page(@);
 
 my $ua = LWP::UserAgent->new();
+my $cookie_jar = HTTP::Cookies->new;
+$cookie_jar->set_cookie( 0, 'adult_explicit', 1, "/", ".livejournal.com" );
+$ua->cookie_jar( $cookie_jar );
 
 my $TARGET = shift || '';  # Целевой журнал
 my %OP = @ARGV;
@@ -80,7 +84,7 @@ if ( $DROP ) {
     unlink "$DATA/commentators.$TARGET.csv";
     unlink "$DATA/cm.$TARGET.json";
     unlink "$DATA/content.$TARGET.csv";
-    #unlink "$DATA/href.$TARGET.csv";
+    unlink "$DATA/href.$TARGET.csv";
 }
 
 # Поехали
@@ -146,19 +150,21 @@ sub process_user(@) {
 
     # Выводим статистику комментаторов по журналу в отдельный файл, если надо
     if ( $CM ) {
-        #open FP, ">$DATA/commentators.$target_user.csv";
-        #foreach ( sort { $commentators->{$b} <=> $commentators->{$a} } keys( %{$commentators} )   ) {
-        #    print FP $_, "\t", $commentators->{$_}, "\n";
-        #}
-        #close FP;
+        if ( %{$commentators} ) {
+            open FP, ">$DATA/commentators.$target_user.csv";
+            foreach ( sort { $commentators->{$b} <=> $commentators->{$a} } keys( %{$commentators} )   ) {
+                print FP $_, "\t", $commentators->{$_}, "\n";
+            }
+            close FP;
+        }
     }
 
     print "STAT:\n";
     my $r = 0;
     my $c = 0;
     foreach ( @stat ) {
-        $r += $_->[1];
-        $c += $_->[2];
+        $r += $_->[1] || 0;
+        $c += $_->[2] || 0;
         print join( "\t", @{$_} ), "\n";
     }
     print "TOTAL: ", $r, " ", $c, "\n";
@@ -191,6 +197,7 @@ sub process_post(@) {
     # Берем базовый пост
     my $html = get_page( "$href?page=$next&format=light" );
     $html =~ s/(\r|\n)//gsm;
+    $cookie_jar->save;
 
     # Страницы
     my @pages;
@@ -237,8 +244,8 @@ sub process_post(@) {
             my $cms = $data->{'comments'} || [];
             my $cm_on_page = scalar( @{$cms} );
             $cm += $cm_on_page;
-            $rpl = $data->{'replycount'} unless ( $rpl );
-            print "RPL: ", $data->{'replycount'}, "\n";
+            $rpl = $data->{'replycount'} || 0 unless ( $rpl );
+            print "RPL: ", $data->{'replycount'} || 0, "\n";
             print "COMMENTS: ", $cm_on_page, "\n";
                 
             foreach ( @{$data->{'comments'}} ) {
@@ -298,9 +305,9 @@ sub process_post(@) {
     close FP;
 
     # Пишем ссылки, если вдруг надо
-    #open FP, ">>$DATA/href.$target_user.csv";
-    #print FP join( "\t", $target_user, $post_id, $post_time, @hrefs ), "\n";
-    #close FP;
+    open FP, ">>$DATA/href.$target_user.csv";
+    print FP join( "\t", $target_user, $post_id, $post_time, @hrefs ), "\n";
+    close FP;
 
     # Собираем коментарии постранично если заявленное число не равно собранному
     if ( $CM and ( $rpl != $cm ) ) {

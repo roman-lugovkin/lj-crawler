@@ -42,6 +42,7 @@ my $YEAR    = $OP{'-y'} || $year;
 my $MONTH   = $OP{'-m'} || $mon; 
 my $CM      = $OP{'-cm'} || 'y'; 
 my $DROP    = $OP{'-d'} || 0; 
+my $DATA    = $OP{'-data'} || './data'; 
 
 exit unless ( -e $IN );
 
@@ -87,7 +88,7 @@ sub get_user(@) {
     while ( defined( my $user = $queue->dequeue_nb ) ) {
         $COUNTER++;
         print "$process $COUNTER $user\n";
-        `perl lj-user-crawler.pl $user -y $YEAR -m $MONTH -c $COUNTER -cm $CM -d $DROP > $process.lj.log`;
+        `perl lj-user-crawler.pl $user -y $YEAR -m $MONTH -c $COUNTER -cm $CM -d $DROP -data $DATA > $process.lj.log`;
     }
     
     $AT --;
