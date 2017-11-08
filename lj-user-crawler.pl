@@ -12,7 +12,7 @@ $| = 1;
 no warnings 'utf8';
 
 #--------------------------------------------------------------------------------------------
-# LJ Crawler 0.9, Roman Lugovkin (c) 2017
+# LJ Crawler 0.9.3, Roman Lugovkin (c) 2017
 #--------------------------------------------------------------------------------------------
 # Настоящее ПО написано в исследовательских целях. 
 # Используя данное ПО вы принимаете на себя ответственность за возможное нарушение 
@@ -36,6 +36,7 @@ sub get_page(@);
 my $ua = LWP::UserAgent->new();
 my $cookie_jar = HTTP::Cookies->new;
 $cookie_jar->set_cookie( 0, 'adult_explicit', 1, "/", ".livejournal.com" );
+$cookie_jar->set_cookie( 0, 'prop_opt_readability', 1, "/", ".livejournal.com" );
 $ua->cookie_jar( $cookie_jar );
 
 my $TARGET = shift || '';  # Целевой журнал
@@ -48,6 +49,7 @@ $year += 1900;
 my $YEAR    = $OP{'-y'} || $year;    # Год(ы)
 my $MONTH   = $OP{'-m'} || $mon;    # Месяц(ы) если год указан только один
 my $CM      = $OP{'-cm'} || 'y';    # С комментариями (y/n)?
+my $HR      = $OP{'-h'} || 'y';    # С сылками (y/n)?
 my $COUNTER = $OP{'-c'} || 1;    # Счетчик (служебный)
 my $DROP    = $OP{'-d'} || 0;     # Дропнуть файлы данных пользователя перед парсингом
 my $DATA    = $OP{'-data'} || './data'; # Каталог данных
@@ -59,6 +61,7 @@ unless ( -d $DATA ) {
 }
 
 $CM = '' unless ( $CM eq 'y' );
+$HR = '' unless ( $HR eq 'y' );
 
 # Сформируем глобальные параметры диапазонов
 my @YEARS;
@@ -234,7 +237,7 @@ sub process_post(@) {
     my @comments;
 
     # Комvентарии первой страницы уже на странице в виде JS-объекта - вырезаем их и парсим
-    if ( $CM and ( $html =~ /Site\.page = \{(.+?)\};/ ) ) {
+    if ( $html =~ /Site\.page = \{(.+?)\};/ ) {
         my $js = '{'.$1.'}';
         eval {
             $data = from_json( $js );
@@ -284,6 +287,12 @@ sub process_post(@) {
         $body .= '</div>';
     }
 
+    # Теги
+    my @tags;
+    while ( $html =~ /<meta property="article:tag" content="([^"]+?)"\/>/gsm ) {
+        push @tags, $1;
+    }
+
     if ( $body ) {
         # Ссылки в отдельный файл - может пригодится
         while ( $body =~ /href="(.+?)"/g ) {
@@ -301,13 +310,15 @@ sub process_post(@) {
     
     # Пишем контент
     open FP, ">>$DATA/content.$target_user.csv";
-    print FP join( "\t", $target_user, $post_id, $post_time, $title, $body ), "\n";
+    print FP join( "\t", $target_user, $post_id, $post_time, $title, $body, $rpl, join(", ", @tags) ), "\n";
     close FP;
 
-    # Пишем ссылки, если вдруг надо
-    open FP, ">>$DATA/href.$target_user.csv";
-    print FP join( "\t", $target_user, $post_id, $post_time, @hrefs ), "\n";
-    close FP;
+    if ( $HR ) {
+        # Пишем ссылки, если вдруг надо
+        open FP, ">>$DATA/href.$target_user.csv";
+        print FP join( "\t", $target_user, $post_id, $post_time, @hrefs ), "\n";
+        close FP;
+    }
 
     # Собираем коментарии постранично если заявленное число не равно собранному
     if ( $CM and ( $rpl != $cm ) ) {
@@ -367,7 +378,7 @@ sub process_post(@) {
     }
 
     print "RPL/CM: $rpl/$cm\n";
-    return ( $users, [ $href, $rpl, $cm ] );
+    return ( $users, [ $href, $rpl, $cm ], \@tags );
 }
 
 exit;
